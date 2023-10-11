@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>障害物避けゲーム</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    .player {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-color: red;
+    }
+    .obstacle {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-color: blue;
+    }
+  </style>
+</head>
+<body>
+  <h1>障害物避けゲーム</h1>
+  <button id="startButton">ゲーム開始</button>
+  <p>方向キーでプレイヤーを操作し、障害物を避けよう！</p>
+  <div class="player"></div>
+  <p id="score">消えた障害物の個数: 0</p>
+
+  <script>
+    const player = document.querySelector(".player");
+    const startButton = document.getElementById("startButton");
+    const scoreDisplay = document.getElementById("score");
+
+    // ゲームが開始されたかどうかを判断するフラグ
+    let isGameStarted = false;
+    // ゲームオーバーかどうかを判断するフラグ
+    let isGameOver = false;
+    // ゲームクリアかどうかを判断するフラグ
+    let isGameClear = false;
+
+    // プレイヤー（赤いブロック）の初期位置
+    let playerX = window.innerWidth / 2;
+    let playerY = window.innerHeight / 2;
+
+    // プレイヤーの速度と加速度（キーボード操作時の移動量）
+    let playerSpeedX = 0;
+    let playerSpeedY = 0;
+    const playerAcceleration = 0.2;
+    const playerMaxSpeed = 2;
+
+    // 障害物の配列を用意
+    let obstacles = [];
+    // 消えた障害物の個数を記録
+    let score = 0;
+
+    // 障害物の落下速度
+    let obstacleSpeed = 4;
+
+    // ゲーム開始ボタンのクリックイベント
+    startButton.addEventListener("click", function() {
+      if (!isGameStarted) {
+        isGameStarted = true;
+        startButton.style.display = "none"; // ゲーム開始ボタンを非表示にする
+        score = 0; // スコアをリセット
+        scoreDisplay.textContent = "消えた障害物の個数: 0";
+        gameLoop();
+      }
+    });
+
+    // プレイヤーの表示と初期位置設定
+    function renderPlayer() {
+      playerX += playerSpeedX;
+      playerY += playerSpeedY;
+      playerX = Math.min(Math.max(playerX, 0), window.innerWidth - 30);
+      playerY = Math.min(Math.max(playerY, 0), window.innerHeight - 30);
+      player.style.left = playerX + "px";
+      player.style.top = playerY + "px";
+    }
+
+    // 障害物を表示する関数
+    function renderObstacles() {
+      for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].style.top = parseInt(obstacles[i].style.top) + obstacleSpeed + "px";
+
+        // 障害物が画面外に出たら削除
+        if (parseInt(obstacles[i].style.top) > window.innerHeight) {
+          obstacles[i].remove();
+          obstacles.splice(i, 1);
+          score++;
+          scoreDisplay.textContent = "消えた障害物の個数: " + score;
+        }
+
+        // 障害物とプレイヤーの衝突判定
+        const obstacleRect = obstacles[i].getBoundingClientRect();
+        const playerRect = player.getBoundingClientRect();
+        if (
+          obstacleRect.left < playerRect.right &&
+          obstacleRect.right > playerRect.left &&
+          obstacleRect.top < playerRect.bottom &&
+          obstacleRect.bottom > playerRect.top
+        ) {
+          isGameOver = true;
+          alert("ゲームオーバー！障害物に触れました。");
+          resetGame();
+        }
+      }
+    }
+
+    // ランダムに障害物を生成する関数
+    function generateObstacle() {
+      const newObstacle = document.createElement("div");
+      newObstacle.className = "obstacle";
+      newObstacle.style.left = Math.random() * (window.innerWidth - 30) + "px";
+      newObstacle.style.top = -30 + "px";
+      document.body.appendChild(newObstacle);
+      obstacles.push(newObstacle);
+    }
+
+    // ゲームループ
+    function gameLoop() {
+      if (isGameStarted && !isGameOver && !isGameClear) {
+        // プレイヤーの速度を更新
+        playerSpeedX += playerAcceleration * (playerSpeedX > 0 ? -1 : 1);
+        playerSpeedX = Math.min(Math.max(playerSpeedX, -playerMaxSpeed), playerMaxSpeed);
+        playerSpeedY += playerAcceleration * (playerSpeedY > 0 ? -1 : 1);
+        playerSpeedY = Math.min(Math.max(playerSpeedY, -playerMaxSpeed), playerMaxSpeed);
+
+        // プレイヤーの操作
+        document.addEventListener("keydown", function(event) {
+          switch(event.keyCode) {
+            case 37: // 左矢印
+              playerSpeedX = -playerMaxSpeed;
+              break;
+            case 38: // 上矢印
+              playerSpeedY = -playerMaxSpeed;
+              break;
+            case 39: // 右矢印
+              playerSpeedX = playerMaxSpeed;
+              break;
+            case 40: // 下矢印
+              playerSpeedY = playerMaxSpeed;
+              break;
+          }
+        });
+
+        // 一定時間が経過したらランダムに障害物を生成
+        if (Math.random() < 0.3) {
+          generateObstacle();
+        }
+
+        // 障害物の速度を段々と早くする
+        if (obstacleSpeed < 10) {
+          obstacleSpeed += 0.0025;
+        }
+      }
+
+      // プレイヤーを表示
+      renderPlayer();
+
+      // 障害物を表示
+      renderObstacles();
+
+      // ゲームクリアの判定
+      if (!isGameClear && score >= 500) {
+        isGameClear = true;
+        alert("ゲームクリア！おめでとうございます。");
+        resetGame();
+      }
+
+      // ゲームループを再帰的に呼び出す
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ゲームリセット関数
+    function resetGame() {
+      isGameStarted = false;
+      isGameOver = false;
+      isGameClear = false;
+      playerX = window.innerWidth / 2;
+      playerY = window.innerHeight - 50;
+      playerSpeedX = 0;
+      playerSpeedY = 0;
+      obstacleSpeed = 4;
+      for (const obstacle of obstacles) {
+        obstacle.remove();
+      }
+      obstacles = [];
+      startButton.style.display = "block"; // ゲーム開始ボタンを表示
+      score = 0; // スコアをリセット
+      scoreDisplay.textContent = "消えた障害物の個数: 0";
+      renderPlayer();
+    }
+  </script>
+</body>
+</html>
